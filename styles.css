@@ -133,11 +133,16 @@
 	border-radius: 3px;
 	background: linear-gradient(to right, var(--interactive-accent) var(--progress, 0%), var(--background-modifier-border) var(--progress, 0%));
 }
-.tpp-player-ui .tpp-seek::-webkit-slider-thumb {
+.tpp-player-ui .tpp-seek::-webkit-slider-thumb,
+.tpp-player-ui .tpp-seek:not(:disabled)::-webkit-slider-thumb:active {
 	-webkit-appearance: none;
+	/* Obsidian offsets its slider thumbs with position/top; centre ours on the 6px track instead. */
+	position: static;
+	top: auto;
 	width: 18px;
 	height: 18px;
 	margin-top: -6px;
+	opacity: 1;
 	border: none;
 	border-radius: 50%;
 	background: var(--interactive-accent);
@@ -150,7 +155,8 @@
 	border-radius: 50%;
 	background: var(--interactive-accent);
 }
-.is-mobile .tpp-player-ui .tpp-seek::-webkit-slider-thumb {
+.is-mobile .tpp-player-ui .tpp-seek::-webkit-slider-thumb,
+.is-mobile .tpp-player-ui .tpp-seek:not(:disabled)::-webkit-slider-thumb:active {
 	width: 22px;
 	height: 22px;
 	margin-top: -8px;
