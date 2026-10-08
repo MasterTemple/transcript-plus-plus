@@ -55,6 +55,15 @@ export class TranscriptReader extends DocumentReader {
 		-webkit-user-select: none;
 		user-select: none;
 	}
+	.tpp-cue {
+		border-radius: 3px;
+		box-decoration-break: clone;
+		-webkit-box-decoration-break: clone;
+	}
+	/* A faint gray behind the hovered cue (before .tpp-playing, which wins). */
+	@media (hover: hover) {
+		.tpp-cue:hover { background-color: color-mix(in srgb, currentColor 13%, transparent); }
+	}
 	.tpp-cue.tpp-playing {
 		background-color: color-mix(in srgb, var(--interactive-accent, #7c5cff) 22%, transparent);
 		border-radius: 3px;
