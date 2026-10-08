@@ -36,7 +36,58 @@ export default class TranscriptPlusPlus extends FilePlusPlusPlugin<Transcript, T
 		return this.views().filter((v): v is TranscriptView => v instanceof TranscriptView);
 	}
 
+	/** Transcripts hidden in the file explorer: those a media file opens (when `hideTranscripts`). */
+	hiddenTranscripts(): TFile[] {
+		const s = this.settings;
+		if (!s.hideTranscripts || !s.openMediaInTranscript.length) return [];
+		return this.app.vault
+			.getFiles()
+			.filter((f) => this.format.extensions.includes(f.extension.toLowerCase()))
+			.filter((t) => this.allMediaOf(t).some((m) => s.openMediaInTranscript.includes(m.extension.toLowerCase())));
+	}
+
+	private hideStyle: HTMLStyleElement | null = null;
+	private hideTimer = 0;
+
+	/** Re-apply `hideTranscripts` (debounced: called on every vault change). */
+	updateHiddenTranscripts(now = false): void {
+		window.clearTimeout(this.hideTimer);
+		if (!now) {
+			this.hideTimer = window.setTimeout(() => this.updateHiddenTranscripts(true), 500);
+			return;
+		}
+		this.hideStyle ??= document.head.createEl('style', { attr: { id: `${this.manifest.id}-hidden` } });
+		const rules = this.hiddenTranscripts().map((f) => `.nav-files-container .tree-item.nav-file:has(> .nav-file-title[data-path="${CSS.escape(f.path)}"])`);
+		this.hideStyle.textContent = rules.length ? `${rules.join(',\n')} { display: none; }` : '';
+	}
+
+	override async onExternalSettingsChange(): Promise<void> {
+		await super.onExternalSettingsChange();
+		this.updateHiddenTranscripts(true);
+	}
+
+	override onunload(): void {
+		super.onunload();
+		window.clearTimeout(this.hideTimer);
+		this.hideStyle?.remove();
+	}
+
 	protected override async onLoaded(): Promise<void> {
+		this.app.workspace.onLayoutReady(() => {
+			this.updateHiddenTranscripts(true);
+			// Transcripts or media added, removed or renamed change what is hidden.
+			for (const type of ['create', 'delete', 'rename'] as const) this.registerEvent(this.app.vault.on(type as 'create', () => this.updateHiddenTranscripts()));
+		});
+		this.addCommand({
+			id: 'toggle-hide-transcripts',
+			name: 'Toggle hiding transcripts (that open from their media) in the file explorer',
+			callback: async () => {
+				this.settings.hideTranscripts = !this.settings.hideTranscripts;
+				await this.saveSettings();
+				this.updateHiddenTranscripts(true);
+				new Notice(this.settings.hideTranscripts ? `Hiding ${this.hiddenTranscripts().length} transcripts in the file explorer` : 'Showing transcripts in the file explorer');
+			},
+		});
 		this.addCommand({
 			id: 'choose-media',
 			name: 'Choose the audio or video of this transcript',
@@ -95,6 +146,7 @@ export default class TranscriptPlusPlus extends FilePlusPlusPlugin<Transcript, T
 			onChooseItem(f: TFile) {
 				plugin.settings.mediaOverrides[file.path] = f.path;
 				void plugin.saveSettings();
+				plugin.updateHiddenTranscripts();
 				for (const v of plugin.transcriptViews()) if (v.file?.path === file.path) v.loadPlayer();
 				new Notice(`${file.basename} plays ${f.name}`);
 			}
@@ -114,6 +166,7 @@ export default class TranscriptPlusPlus extends FilePlusPlusPlugin<Transcript, T
 				t.setValue(s.mediaPatterns.join('\n')).onChange(async (v) => {
 					s.mediaPatterns = v.split('\n').map((x) => x.trim()).filter(Boolean);
 					await save();
+					this.updateHiddenTranscripts();
 					for (const view of this.transcriptViews()) view.loadPlayer();
 				});
 			});
@@ -126,6 +179,7 @@ export default class TranscriptPlusPlus extends FilePlusPlusPlugin<Transcript, T
 					b.setButtonText('Forget all').onClick(async () => {
 						s.mediaOverrides = {};
 						await save();
+						this.updateHiddenTranscripts();
 						for (const view of this.transcriptViews()) view.loadPlayer();
 						refresh();
 					}),
@@ -143,7 +197,18 @@ export default class TranscriptPlusPlus extends FilePlusPlusPlugin<Transcript, T
 							.map((x) => x.trim().replace(/^\./, '').toLowerCase())
 							.filter(Boolean);
 						await save();
+						this.updateHiddenTranscripts();
 					}),
+			);
+		new Setting(el)
+			.setName('Hide transcripts in the file explorer')
+			.setDesc('Hides transcripts that open from their audio or video (as above), since you open them by clicking the media file. Other transcripts stay visible; search, links and the quick switcher still find them. Also a command.')
+			.addToggle((t) =>
+				t.setValue(s.hideTranscripts).onChange(async (v) => {
+					s.hideTranscripts = v;
+					await save();
+					this.updateHiddenTranscripts(true);
+				}),
 			);
 		new Setting(el).setName('Opening a timestamp link').addDropdown((d) =>
 			d

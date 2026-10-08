@@ -46,4 +46,5 @@ Page scripts: one async IIFE with `scripts/helpers.js` prepended (`getView(path)
 - **Labels are `::before` content** (`data-label`), so times and speakers stay out of the text index, search, selections and copied Markdown. Clicking a label targets the paragraph itself; `labelTimeAt` checks the click is above the first cue.
 - **Subclass fields:** the view's extra UI is built in `buildExtraUi` (called after construction), never in a constructor hook — class fields would reset it.
 - **Media open their transcript** via the library's `documentFor` (setting `openMediaInTranscript`): the view's `source` is the media file it was opened from or switched to (`playMedia`), and is what it plays; without one, the first of `findAllMedia`.
+- **Hiding transcripts** (`hideTranscripts`) is a `<style>` of `.nav-file:has(> .nav-file-title[data-path=…])` rules for transcripts whose media type is in `openMediaInTranscript` (others would become unreachable); rebuilt (debounced) on vault create/delete/rename and media-setting changes.
 - **WebM can be audio-only:** the player decides audio vs video from `videoWidth` after metadata loads.
