@@ -1,0 +1,22 @@
+{
+  "name": "transcript-plus-plus",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "bun esbuild.config.ts production",
+    "dev": "bun esbuild.config.ts",
+    "test": "bun test",
+    "typecheck": "tsc -p . --noEmit",
+    "install-plugin": "node_modules/file-plus-plus/scripts/install.sh"
+  },
+  "dependencies": {
+    "file-plus-plus": "link:file-plus-plus"
+  },
+  "devDependencies": {
+    "@happy-dom/global-registrator": "^20.14.5",
+    "@types/bun": "^1.4.2",
+    "esbuild": "^0.28.2",
+    "obsidian": "^1.13.1",
+    "typescript": "^7.0.2"
+  }
+}

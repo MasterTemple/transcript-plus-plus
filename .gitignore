@@ -1,0 +1,8 @@
+node_modules/
+dist/
+*.log
+test-vault/.obsidian/workspace*.json
+test-vault/.obsidian/plugins/transcript-plus-plus/data.json
+test-vault/Media/*.webm
+test-vault/Media/*.mp3
+test-vault/Media/*.mp4

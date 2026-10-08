@@ -1,0 +1,42 @@
+/* Transcript++ (the shared styles come first, from file-plus-plus). */
+
+.tpp-player {
+	flex: 0 0 auto;
+	background: var(--background-secondary);
+	border-bottom: var(--border-width) solid var(--background-modifier-border);
+}
+.tpp-player:empty {
+	display: none;
+}
+.tpp-media {
+	display: block;
+	width: 100%;
+	max-height: 40vh;
+	background: black;
+}
+/* Audio (or a video without picture): just the controls. */
+.tpp-media.is-audio {
+	height: 54px;
+	max-height: 54px;
+	background: transparent;
+}
+.is-phone .tpp-media:not(.is-audio) {
+	max-height: 28vh;
+}
+.tpp-player-missing {
+	display: flex;
+	align-items: center;
+	gap: var(--size-4-2);
+	padding: var(--size-4-2) var(--size-4-3);
+	color: var(--text-muted);
+	font-size: var(--font-ui-small);
+}
+.tpp-player-missing button {
+	margin-left: auto;
+}
+.tpp-embed-player {
+	border-bottom: var(--border-width) solid var(--background-modifier-border);
+}
+.tpp-embed-player .tpp-media:not(.is-audio) {
+	max-height: 220px;
+}

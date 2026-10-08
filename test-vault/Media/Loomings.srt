@@ -1,0 +1,39 @@
+1
+00:00:00,300 --> 00:00:01,687
+Call me Ishmael.
+
+2
+00:00:02,287 --> 00:00:08,320
+Some years ago, never mind how long precisely, having little or no money in my purse,
+
+3
+00:00:08,920 --> 00:00:11,951
+and nothing particular to interest me on shore,
+
+4
+00:00:12,551 --> 00:00:17,220
+I thought I would sail about a little and see the watery part of the world.
+
+5
+00:00:17,820 --> 00:00:22,663
+It is a way I have of driving off the spleen and regulating the circulation.
+
+6
+00:00:23,263 --> 00:00:26,583
+Whenever I find myself growing grim about the mouth;
+
+7
+00:00:27,183 --> 00:00:30,649
+whenever it is a damp, drizzly November in my soul;
+
+8
+00:00:31,249 --> 00:00:35,661
+then, I account it high time to get to sea as soon as I can.
+
+9
+00:00:36,261 --> 00:00:39,408
+This is my substitute for pistol and ball.
+
+10
+00:00:40,008 --> 00:00:42,434
+There is nothing surprising in this.

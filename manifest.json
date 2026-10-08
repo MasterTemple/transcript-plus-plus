@@ -1,0 +1,9 @@
+{
+	"id": "transcript-plus-plus",
+	"name": "Transcript++",
+	"version": "0.1.0",
+	"minAppVersion": "1.5.0",
+	"description": "Read subtitles and transcripts (SRT, WebVTT) next to their audio or video, with highlights backed by timestamp links in your notes.",
+	"author": "Blake",
+	"isDesktopOnly": false
+}
