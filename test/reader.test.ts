@@ -85,3 +85,22 @@ describe('transcript reader', () => {
 		expect(info.tocItem?.label).toBe('5:00');
 	});
 });
+
+describe('extracted text', () => {
+	test('offsets in the cues become time locators with the exact words, which resolve', async () => {
+		const { createTranscriptFormat } = await import('../src/format');
+		const format = createTranscriptFormat(() => ({ sectionMinutes: 5 }));
+		const app = { vault: { cachedRead: async () => srt } } as any;
+		const extracted = await format.extractText!(app, {} as any);
+		const text = extracted.sections[0].text;
+		expect(text.startsWith('Call me Ishmael. Some years ago,')).toBe(true);
+		const s = text.indexOf('never mind');
+		const loc = extracted.locator(0, s, s + 'never mind'.length)!;
+		expect(loc).toBe('t=2.3s-8.3s:~:text=never%20mind');
+		const r = await reader();
+		expect(r.resolve(loc)!.toString()).toBe('never mind');
+		// Across cues
+		const across = extracted.locator(0, text.indexOf('Ishmael'), text.indexOf('Some') + 4)!;
+		expect(r.resolve(across)!.toString()).toBe('Ishmael. Some');
+	});
+});

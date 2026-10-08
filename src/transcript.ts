@@ -60,6 +60,11 @@ const ENTITIES: Record<string, string> = { amp: '&', lt: '<', gt: '>', nbsp: ' 
  * Append a cue's text to an element: `<i>`, `<b>`, `<u>` become elements, other tags are dropped,
  * entities decoded, line breaks become spaces. Never uses innerHTML.
  */
+/** A cue's text as the reader shows it, without markup (for searching it without rendering). */
+export function cuePlainText(text: string): string {
+	return text.replace(/\n+/g, ' ').replace(/<[^>]*>/g, '');
+}
+
 export function appendCueText(parent: HTMLElement, text: string): void {
 	const doc = parent.ownerDocument;
 	const stack: HTMLElement[] = [parent];
