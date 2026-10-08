@@ -1,8 +1,8 @@
 import { DocumentView } from 'file-plus-plus/obsidian';
 import { PREFIX, type SelectionInfo } from 'file-plus-plus/core';
 import type { HighlightEntry } from 'file-plus-plus/obsidian';
-import { setIcon, type Menu } from 'obsidian';
-import { findMedia } from './media';
+import { setIcon, type Menu, type TFile } from 'obsidian';
+import { MEDIA_EXTENSIONS } from './media';
 import { MediaPlayer } from './player';
 import type { TranscriptReader } from './reader';
 import type TranscriptPlusPlus from './main';
@@ -69,15 +69,41 @@ export class TranscriptView extends DocumentView<Transcript, TranscriptReader> {
 	}
 
 	/**
+	 * The media this view plays: the file it was opened from or switched to (`source`), else the
+	 * transcript's first; and all of them (alternatives like `talk.mp3` and `talk.mp4`).
+	 */
+	private media(): { file: TFile | null; all: TFile[] } {
+		const all = this.file ? this.tpp.allMediaOf(this.file) : [];
+		const src = this.source;
+		const own = src && MEDIA_EXTENSIONS.includes(src.extension.toLowerCase()) && this.app.vault.getFileByPath(src.path) === src ? src : null;
+		const file = own ?? all[0] ?? null;
+		if (file && !all.includes(file)) all.unshift(file);
+		return { file, all };
+	}
+
+	/** Play `file` (one of the transcript's media, or any), remembered in this tab. */
+	playMedia(file: TFile): void {
+		if (this.source !== file) this.setSource(file);
+		else this.loadPlayer();
+	}
+
+	protected override onSourceChange(): void {
+		this.loadPlayer();
+	}
+
+	/**
 	 * (Re)create the player for this transcript's media, or offer to choose one. When the transcript
-	 * was only re-rendered (edited), the player keeps playing and is bound to the new reader.
+	 * was only re-rendered (edited), the player keeps playing and is bound to the new reader. Switching
+	 * to another file of the same recording continues where it was.
 	 */
 	loadPlayer(): void {
 		if (!this.file || !this.reader) return;
 		const s = this.tpp.settings;
-		const media = findMedia(this.app, this.file, s.mediaPatterns, s.mediaOverrides);
+		const { file: media, all } = this.media();
 		if (this.reloading && this.player && this.player.file === media) return this.bindPlayer(this.player);
-		this.player?.destroy();
+		const old = this.player;
+		const resume = old && media && old.file !== media && (old.time > 0 || !old.paused) ? { time: old.time, play: !old.paused } : null;
+		old?.destroy();
 		this.player = null;
 		this.playerEl.empty();
 		if (!media) {
@@ -94,8 +120,11 @@ export class TranscriptView extends DocumentView<Transcript, TranscriptReader> {
 				s.playbackRate = rate;
 				void this.tpp.saveSettings();
 			},
+			alternatives: all,
+			onChoose: (f) => this.playMedia(f),
 		}));
 		this.bindPlayer(player);
+		if (resume) player.seek(resume.time, resume.play);
 		if (this.pendingSeek) {
 			this.applyLocator(this.pendingSeek);
 			this.pendingSeek = null;

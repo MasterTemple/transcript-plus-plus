@@ -2,7 +2,7 @@ import { FilePlusPlusPlugin, type DocumentEmbed, type DocumentView, type EmbedCo
 import { FuzzySuggestModal, Notice, Setting, TFile, type WorkspaceLeaf } from 'obsidian';
 import { TranscriptEmbed } from './embed';
 import { createTranscriptFormat } from './format';
-import { MEDIA_EXTENSIONS, findMedia } from './media';
+import { MEDIA_EXTENSIONS, findAllMedia, findMedia, findTranscript } from './media';
 import type { TranscriptReader } from './reader';
 import { TPP_DEFAULTS, type LinkPlayback, type TppSettings } from './settings';
 import type { Transcript } from './transcript';
@@ -23,6 +23,13 @@ export default class TranscriptPlusPlus extends FilePlusPlusPlugin<Transcript, T
 
 	override createEmbed(ctx: EmbedContext, file: TFile, subpath: string): DocumentEmbed<Transcript, TranscriptReader> {
 		return new TranscriptEmbed(this, ctx, file, subpath);
+	}
+
+	/** Opening a media file (of the chosen types) that has a transcript opens the transcript, playing it. */
+	override documentFor(file: TFile): TFile | null {
+		const s = this.settings;
+		if (!s.openMediaInTranscript.includes(file.extension.toLowerCase())) return null;
+		return findTranscript(this.app, file, this.format.extensions, s.mediaPatterns, s.mediaOverrides);
 	}
 
 	transcriptViews(): TranscriptView[] {
@@ -123,6 +130,21 @@ export default class TranscriptPlusPlus extends FilePlusPlusPlugin<Transcript, T
 						refresh();
 					}),
 				);
+		new Setting(el)
+			.setName('Open media in its transcript')
+			.setDesc('Opening a file of these types that has a transcript (found as above) opens the transcript instead, playing that file. Separated by commas; empty: never. "Open … by itself" in the tab\'s menu shows the file alone.')
+			.addText((t) =>
+				t
+					.setPlaceholder('mp3, mp4, webm')
+					.setValue(s.openMediaInTranscript.join(', '))
+					.onChange(async (v) => {
+						s.openMediaInTranscript = v
+							.split(/[\s,]+/)
+							.map((x) => x.trim().replace(/^\./, '').toLowerCase())
+							.filter(Boolean);
+						await save();
+					}),
+			);
 		new Setting(el).setName('Opening a timestamp link').addDropdown((d) =>
 			d
 				.addOptions({ seek: 'Moves the player there', play: 'Plays from there', clip: 'Plays the passage, then stops' })
@@ -159,5 +181,10 @@ export default class TranscriptPlusPlus extends FilePlusPlusPlugin<Transcript, T
 	/** The media of a transcript, by the settings (for other code and tests). */
 	mediaOf(file: TFile): TFile | null {
 		return findMedia(this.app, file, this.settings.mediaPatterns, this.settings.mediaOverrides);
+	}
+
+	/** All media of a transcript (alternatives like `talk.mp3` and `talk.mp4`), best first. */
+	allMediaOf(file: TFile): TFile[] {
+		return findAllMedia(this.app, file, this.settings.mediaPatterns, this.settings.mediaOverrides);
 	}
 }

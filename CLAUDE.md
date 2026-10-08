@@ -17,7 +17,7 @@ src/
   transcript.ts  Cue/Transcript, SRT + WebVTT parsing, safe cue markup → DOM
   time.ts        t=… (seconds; Media Fragments and clock times accepted) and cue=… locator schemes
   reader.ts      TranscriptReader extends DocumentReader: paragraphs of cue spans, sections/TOC by time
-  media.ts       findMedia (patterns, overrides) — no Obsidian runtime imports (unit-tested)
+  media.ts       findAllMedia / findMedia (patterns, overrides), findTranscript (the reverse) — no Obsidian runtime imports (unit-tested)
   player.ts      MediaPlayer: our own controls (container query: one row wide, two rows narrow), duration probing
   view.ts        TranscriptView: player above the transcript, sync, follow, label clicks, play menu items
   embed.ts       TranscriptEmbed: media + transcript, plays the passage
@@ -45,4 +45,5 @@ Page scripts: one async IIFE with `scripts/helpers.js` prepended (`getView(path)
 - **Passages are whole cues:** a range resolves from the last cue starting at or before its start through the first cue ending at or after its end, so links round-trip. Text fragments are the precise alternative.
 - **Labels are `::before` content** (`data-label`), so times and speakers stay out of the text index, search, selections and copied Markdown. Clicking a label targets the paragraph itself; `labelTimeAt` checks the click is above the first cue.
 - **Subclass fields:** the view's extra UI is built in `buildExtraUi` (called after construction), never in a constructor hook — class fields would reset it.
+- **Media open their transcript** via the library's `documentFor` (setting `openMediaInTranscript`): the view's `source` is the media file it was opened from or switched to (`playMedia`), and is what it plays; without one, the first of `findAllMedia`.
 - **WebM can be audio-only:** the player decides audio vs video from `videoWidth` after metadata loads.

@@ -1,4 +1,4 @@
-import { setIcon, type App, type TFile } from 'obsidian';
+import { Menu, setIcon, type App, type TFile } from 'obsidian';
 
 export interface PlayerOptions {
 	/** Used while the file doesn't say how long it is (e.g. WebM recorded in a browser): the transcript's end. */
@@ -6,6 +6,9 @@ export interface PlayerOptions {
 	/** Playback speed to start with, and where to report changes. */
 	rate?: number;
 	onRate?(rate: number): void;
+	/** Other files of the same recording (e.g. `talk.mp3` for `talk.mp4`): a button to switch to one. */
+	alternatives?: TFile[];
+	onChoose?(file: TFile): void;
 }
 
 const RATES = [1, 1.25, 1.5, 1.75, 2, 0.75];
@@ -115,6 +118,29 @@ export class MediaPlayer {
 			this.el.playbackRate = next;
 			this.opts.onRate?.(next);
 		});
+		const alternatives = this.opts.alternatives ?? [];
+		if (alternatives.length > 1) {
+			const names = alternatives.map((f) => f.name);
+			const label = (f: TFile) => (names.filter((n) => n === f.name).length > 1 ? f.path : f.name);
+			const choose = bar.createEl('button', {
+				cls: 'tpp-control tpp-source',
+				text: this.file.extension.toUpperCase(),
+				attr: { 'aria-label': `Playing ${label(this.file)}`, type: 'button' },
+			});
+			choose.addEventListener('click', (e) => {
+				e.preventDefault();
+				const menu = new Menu();
+				for (const f of alternatives)
+					menu.addItem((i) =>
+						i
+							.setTitle(label(f))
+							.setChecked(f === this.file)
+							.onClick(() => f !== this.file && this.opts.onChoose?.(f)),
+					);
+				const r = choose.getBoundingClientRect();
+				menu.showAtPosition({ x: r.left, y: r.bottom });
+			});
+		}
 		button('tpp-fullscreen', 'maximize', 'Full screen', () => {
 			const v = this.el as HTMLVideoElement & { webkitEnterFullscreen?: () => void };
 			if (v.requestFullscreen) void v.requestFullscreen().catch(() => v.webkitEnterFullscreen?.());

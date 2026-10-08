@@ -14,18 +14,26 @@ export function renderPattern(pattern: string, vars: { folder: string; name: str
 }
 
 /**
- * The audio or video file of a transcript:
+ * The audio or video files of a transcript, best first:
  * 1. one the user chose for it (`overrides`, path → media path);
- * 2. the first pattern that matches. A pattern with a `/` is a path (without extension, or with one);
- *    a bare name matches files with that name anywhere, preferring the transcript's folder, then the
- *    shortest path. Each pattern is tried with the transcript's name, then without a language suffix.
+ * 2. the files of the first pattern that matches. A pattern with a `/` is a path (without extension:
+ *    every media extension that exists; or with one); a bare name matches files with that name in the
+ *    transcript's folder, else anywhere (shortest path first). Each pattern is tried with the
+ *    transcript's name, then without a language suffix.
+ * Several files are alternatives, e.g. `talk.mp3` and `talk.mp4`.
  */
-export function findMedia(app: App, transcript: TFile, patterns: string[], overrides: Record<string, string>): TFile | null {
+export function findAllMedia(app: App, transcript: TFile, patterns: string[], overrides: Record<string, string>, first = false): TFile[] {
+	const found: TFile[] = [];
 	const chosen = overrides[transcript.path];
-	if (chosen) {
-		const f = app.vault.getFileByPath(chosen);
-		if (f) return f;
+	const chosenFile = chosen ? app.vault.getFileByPath(chosen) : null;
+	if (chosenFile) {
+		found.push(chosenFile);
+		if (first) return found;
 	}
+	const add = (files: TFile[]) => {
+		for (const f of files) if (!found.includes(f)) found.push(f);
+		return found;
+	};
 	const folder = transcript.parent?.path === '/' ? '' : (transcript.parent?.path ?? '');
 	const names = [transcript.basename, withoutLanguage(transcript.basename)].filter((n): n is string => !!n);
 	let all: TFile[] | null = null;
@@ -33,21 +41,39 @@ export function findMedia(app: App, transcript: TFile, patterns: string[], overr
 		for (const name of names) {
 			const target = renderPattern(pattern.trim(), { folder, name });
 			if (!target) continue;
+			let hits: TFile[];
 			if (target.includes('/')) {
 				const path = target.replace(/\/{2,}/g, '/').replace(/\/$/, '');
 				const ext = path.split('.').pop()!.toLowerCase();
 				const exact = MEDIA_EXTENSIONS.includes(ext) ? app.vault.getFileByPath(path) : null;
-				if (exact) return exact;
-				for (const e of MEDIA_EXTENSIONS) {
-					const f = app.vault.getFileByPath(`${path}.${e}`);
-					if (f) return f;
-				}
+				hits = exact ? [exact] : MEDIA_EXTENSIONS.map((e) => app.vault.getFileByPath(`${path}.${e}`)).filter((f): f is TFile => !!f);
 			} else {
 				all ??= app.vault.getFiles().filter((f) => MEDIA_EXTENSIONS.includes(f.extension.toLowerCase()));
-				const hits = all.filter((f) => f.basename === target);
-				if (hits.length) return hits.sort((a, b) => Number(b.parent?.path === transcript.parent?.path) - Number(a.parent?.path === transcript.parent?.path) || a.path.length - b.path.length)[0];
+				hits = all.filter((f) => f.basename === target);
+				const near = hits.filter((f) => f.parent?.path === transcript.parent?.path);
+				hits = (near.length ? near : hits).sort((a, b) => a.path.length - b.path.length);
 			}
+			if (hits.length) return add(first ? hits.slice(0, 1) : hits);
 		}
 	}
-	return null;
+	return found;
+}
+
+/** The audio or video file of a transcript (the first of `findAllMedia`), or null. */
+export function findMedia(app: App, transcript: TFile, patterns: string[], overrides: Record<string, string>): TFile | null {
+	return findAllMedia(app, transcript, patterns, overrides, true)[0] ?? null;
+}
+
+/**
+ * The transcript of a media file: one whose media (`findAllMedia`) includes it. Candidates are the
+ * transcripts named like it (`talk.srt`, `talk.en.vtt`) and those it was chosen for; the one in its
+ * folder first, then by shortest path.
+ */
+export function findTranscript(app: App, media: TFile, extensions: string[], patterns: string[], overrides: Record<string, string>): TFile | null {
+	const chosen = new Set(Object.entries(overrides).filter(([, m]) => m === media.path).map(([t]) => t));
+	const candidates = app.vault
+		.getFiles()
+		.filter((f) => extensions.includes(f.extension.toLowerCase()) && (chosen.has(f.path) || f.basename === media.basename || withoutLanguage(f.basename) === media.basename))
+		.sort((a, b) => Number(b.parent === media.parent) - Number(a.parent === media.parent) || a.path.length - b.path.length);
+	return candidates.find((t) => findAllMedia(app, t, patterns, overrides).includes(media)) ?? null;
 }

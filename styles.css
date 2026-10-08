@@ -28,11 +28,11 @@
 	max-height: 28vh;
 }
 
-/* Wide: one row. [−10] [▶] [+10] 0:12 ━━━●━━━ 0:43 [1×] [⛶] */
+/* Wide: one row. [−10] [▶] [+10] 0:12 ━━━●━━━ 0:43 [MP4] [1×] [⛶] */
 .tpp-controls {
 	display: grid;
-	grid-template-columns: auto auto auto auto 1fr auto auto auto;
-	grid-template-areas: 'back play forward current seek total rate fullscreen';
+	grid-template-columns: auto auto auto auto 1fr auto auto auto auto;
+	grid-template-areas: 'back play forward current seek total source rate fullscreen';
 	align-items: center;
 	gap: var(--size-4-1) var(--size-4-2);
 	padding: var(--size-4-2) var(--size-4-3);
@@ -44,6 +44,7 @@
 .tpp-player-ui .tpp-seek { grid-area: seek; }
 .tpp-player-ui .tpp-time-total { grid-area: total; }
 .tpp-player-ui .tpp-rate { grid-area: rate; }
+.tpp-player-ui .tpp-source { grid-area: source; justify-self: start; }
 .tpp-fullscreen { grid-area: fullscreen; }
 
 /* Narrow (phones, small panes, embeds): the bar on its own row, big buttons below. */
@@ -52,14 +53,14 @@
 		grid-template-columns: auto 1fr auto auto auto 1fr auto;
 		grid-template-areas:
 			'current seek seek seek seek seek total'
-			'rate . back play forward . fullscreen';
+			'rate source back play forward . fullscreen';
 		row-gap: var(--size-4-2);
 		padding: var(--size-4-2) var(--size-4-3) var(--size-4-3);
 	}
 	.tpp-player-ui.is-audio .tpp-controls {
 		grid-template-areas:
 			'current seek seek seek seek seek total'
-			'rate . back play forward . .';
+			'rate source back play forward . .';
 	}
 }
 

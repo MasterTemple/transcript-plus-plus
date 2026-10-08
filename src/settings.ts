@@ -1,4 +1,5 @@
 import type { FppSettings } from 'file-plus-plus/obsidian';
+import { MEDIA_EXTENSIONS } from './media';
 
 /** What opening a timestamp link does to the player. */
 export type LinkPlayback = 'seek' | 'play' | 'clip';
@@ -8,6 +9,8 @@ export interface TppSettings extends FppSettings {
 	mediaPatterns: string[];
 	/** Media chosen by hand: transcript path → media path. */
 	mediaOverrides: Record<string, string>;
+	/** Media files of these types open in their transcript (when they have one); empty: never. */
+	openMediaInTranscript: string[];
 	linkPlayback: LinkPlayback;
 	/** Scroll the transcript along with playback. */
 	followPlayback: boolean;
@@ -20,6 +23,7 @@ export interface TppSettings extends FppSettings {
 export const TPP_DEFAULTS = {
 	mediaPatterns: ['{{folder}}/{{name}}', '{{name}}'],
 	mediaOverrides: {} as Record<string, string>,
+	openMediaInTranscript: [...MEDIA_EXTENSIONS],
 	linkPlayback: 'seek' as LinkPlayback,
 	followPlayback: true,
 	sectionMinutes: 5,
