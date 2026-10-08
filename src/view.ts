@@ -61,21 +61,25 @@ export class TranscriptView extends DocumentView<Transcript, TranscriptReader> {
 		scroller.addEventListener('click', onClick, true);
 		scroller.addEventListener('wheel', manual, { passive: true });
 		scroller.addEventListener('touchmove', manual, { passive: true });
-		this.offReader = [
+		this.offReader.push(
 			() => scroller.removeEventListener('click', onClick, true),
 			() => scroller.removeEventListener('wheel', manual),
 			() => scroller.removeEventListener('touchmove', manual),
-		];
+		);
 	}
 
-	/** (Re)create the player for this transcript's media, or offer to choose one. */
+	/**
+	 * (Re)create the player for this transcript's media, or offer to choose one. When the transcript
+	 * was only re-rendered (edited), the player keeps playing and is bound to the new reader.
+	 */
 	loadPlayer(): void {
-		this.player?.destroy();
-		this.player = null;
-		this.playerEl.empty();
 		if (!this.file || !this.reader) return;
 		const s = this.tpp.settings;
 		const media = findMedia(this.app, this.file, s.mediaPatterns, s.mediaOverrides);
+		if (this.reloading && this.player && this.player.file === media) return this.bindPlayer(this.player);
+		this.player?.destroy();
+		this.player = null;
+		this.playerEl.empty();
 		if (!media) {
 			const row = this.playerEl.createDiv('tpp-player-missing');
 			setIcon(row.createSpan(), 'file-audio');
@@ -91,7 +95,17 @@ export class TranscriptView extends DocumentView<Transcript, TranscriptReader> {
 				void this.tpp.saveSettings();
 			},
 		}));
+		this.bindPlayer(player);
+		if (this.pendingSeek) {
+			this.applyLocator(this.pendingSeek);
+			this.pendingSeek = null;
+		}
+	}
+
+	/** Keep the reader's playing cue (and scroll, when following) in sync with the player. */
+	private bindPlayer(player: MediaPlayer): void {
 		const reader = this.reader;
+		if (!reader) return;
 		const sync = () => {
 			if (this.reader !== reader || this.player !== player) return;
 			const changed = reader.setPlaying(player.paused && player.time === 0 ? null : reader.cueAt(player.time));
@@ -103,12 +117,8 @@ export class TranscriptView extends DocumentView<Transcript, TranscriptReader> {
 				if (at.top < box.top + box.height * 0.15 || at.bottom > box.top + box.height * 0.75) reader.scrollToRange(r, { position: 'center' });
 			}
 		};
-		player.on('timeupdate', sync);
-		player.on('seeked', sync);
-		if (this.pendingSeek) {
-			this.applyLocator(this.pendingSeek);
-			this.pendingSeek = null;
-		}
+		this.offReader.push(player.on('timeupdate', sync), player.on('seeked', sync));
+		sync();
 	}
 
 	private pendingSeek: string | null = null;
@@ -161,6 +171,7 @@ export class TranscriptView extends DocumentView<Transcript, TranscriptReader> {
 	protected override onTeardown(): void {
 		this.offReader.forEach((off) => off());
 		this.offReader = [];
+		if (this.reloading) return; // the player is kept (see loadPlayer)
 		this.player?.destroy();
 		this.player = null;
 		this.playerEl?.empty();

@@ -23,7 +23,7 @@ Times in links are seconds (`t=109s-120.5s`), never the subtitle style `00:01:49
 - **Highlights and notes.** Everything EPUB++ has, from the shared library [file-plus-plus](../file-plus-plus): colors, comments, copy formats (with `{{time}}`, `{{start}}`, `{{end}}`), annotation files (a heading per contents entry, annotations inserted in time order), search, hover previews, the backlinks pane, mobile gestures.
 - **Selection and highlight menus.** Copy items, plus **Play from here** and **Play selection** / **Play highlight** (stops at the end). On mobile, hold a highlight for its menu.
 - **Opening a link** moves the player there, plays from there, or plays just the passage (setting).
-- **Plain text.** "Open as plain text" (tab menu, or the *Toggle plain text / transcript view* command) shows the raw SRT / VTT file in monospace with line numbers; it follows changes to the file. The header button switches back.
+- **Plain text.** "Read as plain text" and "Edit as plain text" (tab menu, or the *Toggle plain text / transcript view* and *Toggle reading / editing as plain text* commands; Ctrl/Cmd+E switches) show the raw SRT / VTT file in monospace with line numbers. Editing has undo and Ctrl/Cmd+F search and saves as you type; an open transcript tab re-renders with the changes and its player keeps playing. The header buttons switch modes and back to the transcript.
 - **Commands.** Play / pause, back / forward 5 or 10 seconds, choose media, plain text, plus the shared ones (search, annotation file, appearance, copy formats).
 
 ## Development

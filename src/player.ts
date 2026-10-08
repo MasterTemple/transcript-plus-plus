@@ -147,9 +147,12 @@ export class MediaPlayer {
 		rate?.setText(`${el.playbackRate}×`);
 	}
 
-	on<K extends keyof HTMLMediaElementEventMap>(type: K, fn: (e: HTMLMediaElementEventMap[K]) => void): void {
+	/** Listen to the media element (until `destroy`, or the returned function). */
+	on<K extends keyof HTMLMediaElementEventMap>(type: K, fn: (e: HTMLMediaElementEventMap[K]) => void): () => void {
 		this.el.addEventListener(type, fn);
-		this.listeners.push(() => this.el.removeEventListener(type, fn));
+		const off = () => this.el.removeEventListener(type, fn);
+		this.listeners.push(off);
+		return off;
 	}
 
 	get time(): number {
