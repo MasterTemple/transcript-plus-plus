@@ -40,7 +40,7 @@ export default class TranscriptPlusPlus extends FilePlusPlusPlugin<Transcript, T
 			name: 'Play / pause',
 			checkCallback: this.withView((v) => {
 				const p = (v as TranscriptView).player;
-				if (p) void (p.el.paused ? p.el.play() : p.el.pause());
+				p?.toggle();
 			}),
 		});
 		const skip = (id: string, name: string, delta: number) =>
@@ -49,11 +49,13 @@ export default class TranscriptPlusPlus extends FilePlusPlusPlugin<Transcript, T
 				name,
 				checkCallback: this.withView((v) => {
 					const p = (v as TranscriptView).player;
-					if (p) p.seek(Math.max(0, p.time + delta), !p.el.paused);
+					p?.skip(delta);
 				}),
 			});
 		skip('back-5', 'Back 5 seconds', -5);
 		skip('forward-5', 'Forward 5 seconds', 5);
+		skip('back-10', 'Back 10 seconds', -10);
+		skip('forward-10', 'Forward 10 seconds', 10);
 		// Media renamed: keep chosen pairings.
 		this.registerEvent(
 			this.app.vault.on('rename', (file, oldPath) => {

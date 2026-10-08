@@ -8,21 +8,154 @@
 .tpp-player:empty {
 	display: none;
 }
+
+/* ---------- Player ---------- */
+.tpp-player-ui {
+	container-type: inline-size;
+}
 .tpp-media {
 	display: block;
 	width: 100%;
 	max-height: 40vh;
 	background: black;
+	cursor: pointer;
 }
-/* Audio (or a video without picture): just the controls. */
-.tpp-media.is-audio {
-	height: 54px;
-	max-height: 54px;
-	background: transparent;
+.tpp-player-ui.is-audio .tpp-media,
+.tpp-player-ui.is-audio .tpp-fullscreen {
+	display: none;
 }
-.is-phone .tpp-media:not(.is-audio) {
+.is-phone .tpp-media {
 	max-height: 28vh;
 }
+
+/* Wide: one row. [−10] [▶] [+10] 0:12 ━━━●━━━ 0:43 [1×] [⛶] */
+.tpp-controls {
+	display: grid;
+	grid-template-columns: auto auto auto auto 1fr auto auto auto;
+	grid-template-areas: 'back play forward current seek total rate fullscreen';
+	align-items: center;
+	gap: var(--size-4-1) var(--size-4-2);
+	padding: var(--size-4-2) var(--size-4-3);
+}
+.tpp-back { grid-area: back; }
+.tpp-player-ui .tpp-play { grid-area: play; }
+.tpp-forward { grid-area: forward; }
+.tpp-player-ui .tpp-time-current { grid-area: current; }
+.tpp-player-ui .tpp-seek { grid-area: seek; }
+.tpp-player-ui .tpp-time-total { grid-area: total; }
+.tpp-player-ui .tpp-rate { grid-area: rate; }
+.tpp-fullscreen { grid-area: fullscreen; }
+
+/* Narrow (phones, small panes, embeds): the bar on its own row, big buttons below. */
+@container (max-width: 520px) {
+	.tpp-controls {
+		grid-template-columns: auto 1fr auto auto auto 1fr auto;
+		grid-template-areas:
+			'current seek seek seek seek seek total'
+			'rate . back play forward . fullscreen';
+		row-gap: var(--size-4-2);
+		padding: var(--size-4-2) var(--size-4-3) var(--size-4-3);
+	}
+	.tpp-player-ui.is-audio .tpp-controls {
+		grid-template-areas:
+			'current seek seek seek seek seek total'
+			'rate . back play forward . .';
+	}
+}
+
+.tpp-player-ui .tpp-control {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-width: 40px;
+	height: 40px;
+	padding: 0 var(--size-4-2);
+	border-radius: var(--radius-m);
+	background: transparent;
+	box-shadow: none;
+	color: var(--text-muted);
+	font-size: var(--font-ui-small);
+	font-variant-numeric: tabular-nums;
+	cursor: pointer;
+}
+.tpp-player-ui .tpp-control:hover {
+	background: var(--background-modifier-hover);
+	color: var(--text-normal);
+}
+.tpp-player-ui .tpp-control svg {
+	width: 20px;
+	height: 20px;
+}
+.tpp-player-ui .tpp-play {
+	width: 48px;
+	height: 48px;
+	border-radius: 50%;
+	background: var(--interactive-accent);
+	color: var(--text-on-accent);
+}
+.tpp-player-ui .tpp-play:hover {
+	background: var(--interactive-accent-hover);
+	color: var(--text-on-accent);
+}
+.tpp-player-ui .tpp-play svg {
+	width: 22px;
+	height: 22px;
+}
+.tpp-player-ui .tpp-rate {
+	min-width: 48px;
+}
+.tpp-player-ui .tpp-time {
+	font-size: var(--font-ui-small);
+	font-variant-numeric: tabular-nums;
+	color: var(--text-muted);
+	white-space: nowrap;
+}
+
+/* The progress bar: a tall touch area, a visible track, a big thumb. */
+.tpp-player-ui .tpp-seek {
+	-webkit-appearance: none;
+	appearance: none;
+	width: 100%;
+	min-width: 60px;
+	height: 28px;
+	margin: 0;
+	background: transparent;
+	cursor: pointer;
+	touch-action: none;
+}
+.tpp-player-ui .tpp-seek::-webkit-slider-runnable-track {
+	height: 6px;
+	border-radius: 3px;
+	background: linear-gradient(to right, var(--interactive-accent) var(--progress, 0%), var(--background-modifier-border) var(--progress, 0%));
+}
+.tpp-player-ui .tpp-seek::-moz-range-track {
+	height: 6px;
+	border-radius: 3px;
+	background: linear-gradient(to right, var(--interactive-accent) var(--progress, 0%), var(--background-modifier-border) var(--progress, 0%));
+}
+.tpp-player-ui .tpp-seek::-webkit-slider-thumb {
+	-webkit-appearance: none;
+	width: 18px;
+	height: 18px;
+	margin-top: -6px;
+	border: none;
+	border-radius: 50%;
+	background: var(--interactive-accent);
+	box-shadow: 0 0 0 3px var(--background-secondary);
+}
+.tpp-player-ui .tpp-seek::-moz-range-thumb {
+	width: 18px;
+	height: 18px;
+	border: none;
+	border-radius: 50%;
+	background: var(--interactive-accent);
+}
+.is-mobile .tpp-player-ui .tpp-seek::-webkit-slider-thumb {
+	width: 22px;
+	height: 22px;
+	margin-top: -8px;
+}
+
 .tpp-player-missing {
 	display: flex;
 	align-items: center;
@@ -37,6 +170,6 @@
 .tpp-embed-player {
 	border-bottom: var(--border-width) solid var(--background-modifier-border);
 }
-.tpp-embed-player .tpp-media:not(.is-audio) {
+.tpp-embed-player .tpp-media {
 	max-height: 220px;
 }

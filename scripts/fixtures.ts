@@ -1,7 +1,7 @@
 /**
  * Generate test media for test-vault/Media with speech synthesis (espeak-ng) and ffmpeg, plus
  * transcripts whose timings match it:
- *   Loomings.webm + Loomings.srt                    (audio only, same name)
+ *   Loomings.webm + Loomings.srt                    (audio only, same name, no duration in the header)
  *   Lecture.mp4 + Lecture.en.vtt                   (video, language suffix, speakers)
  *   bun scripts/fixtures.ts
  */
@@ -66,7 +66,8 @@ const clock = (t: number, sep: string, hours = true) => {
 };
 
 const lt = await speak('loomings', loomings, 'en-us');
-await $`ffmpeg -loglevel error -y -i ${join(tmp, 'loomings.wav')} -c:a libopus -b:a 32k ${join(out, 'Loomings.webm')}`;
+// Written to a pipe, like a browser's MediaRecorder: the WebM header has no duration.
+await $`ffmpeg -loglevel error -y -i ${join(tmp, 'loomings.wav')} -c:a libopus -b:a 32k -f webm pipe:1 > ${join(out, 'Loomings.webm')}`;
 writeFileSync(join(out, 'Loomings.srt'), lt.map((c, i) => `${i + 1}\n${clock(c.start, ',')} --> ${clock(c.end, ',')}\n${loomings[i]}\n`).join('\n'));
 
 const vt = await speak('lecture', lecture.map(([, l]) => l), 'en-gb');

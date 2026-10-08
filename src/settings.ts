@@ -13,6 +13,8 @@ export interface TppSettings extends FppSettings {
 	followPlayback: boolean;
 	/** Length of a table-of-contents section, in minutes. */
 	sectionMinutes: number;
+	/** Playback speed (the player's speed button). */
+	playbackRate: number;
 }
 
 export const TPP_DEFAULTS = {
@@ -21,6 +23,7 @@ export const TPP_DEFAULTS = {
 	linkPlayback: 'seek' as LinkPlayback,
 	followPlayback: true,
 	sectionMinutes: 5,
+	playbackRate: 1,
 	aliasTemplate: '{{title}} {{time}}',
 	annotationFileName: '{{title}} - Notes',
 };

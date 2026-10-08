@@ -1,6 +1,7 @@
 import { DocumentEmbed } from 'file-plus-plus/obsidian';
 import type { ParsedLocator } from 'file-plus-plus/core';
-import { MediaPlayer, findMedia } from './media';
+import { findMedia } from './media';
+import { MediaPlayer } from './player';
 import type { TranscriptReader } from './reader';
 import type TranscriptPlusPlus from './main';
 import { parseTimeLocator } from './time';
@@ -23,13 +24,13 @@ export class TranscriptEmbed extends DocumentEmbed<Transcript, TranscriptReader>
 		this.player?.destroy();
 		this.playerEl.empty();
 		if (!media) return;
-		const player = (this.player = new MediaPlayer(this.playerEl, plugin.app, media));
+		const player = (this.player = new MediaPlayer(this.playerEl, plugin.app, media, { fallbackDuration: reader.transcript.duration, rate: s.playbackRate }));
 		const t = loc.locator ? parseTimeLocator(loc.locator) : null;
 		const cues = !t && range ? reader.cuesOf(range) : [];
 		const start = t?.start ?? cues[0]?.start ?? 0;
 		const end = t ? t.end : (cues[cues.length - 1]?.end ?? null);
 		// Show the passage's first frame; playing stops at its end (once).
-		player.on('loadedmetadata', () => (player.el.currentTime = start));
+		player.on('loadedmetadata', () => player.seek(start));
 		let clip = end !== null;
 		player.on('play', () => {
 			if (clip && end !== null) {

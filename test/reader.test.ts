@@ -43,8 +43,27 @@ describe('transcript reader', () => {
 		expect(r.resolve('t=3s-4s')!.toString()).toBe('Some years ago, never mind how long precisely,');
 		const words = r.resolve(':~:text=never%20mind')!;
 		expect(words.toString()).toBe('never mind');
-		expect(r.locatorFromRange(words)).toBe('t=2.3s-8.3s');
+		// Part of a cue: the time (for playing) plus the words (for the highlight).
+		const partial = r.locatorFromRange(words)!;
+		expect(partial).toBe('t=2.3s-8.3s:~:text=never%20mind');
+		expect(r.resolve(partial)!.toString()).toBe('never mind');
+		expect(r.isRangeLocator(partial)).toBe(true);
 		expect(r.resolve('cue=1-2')!.toString()).toBe('Call me Ishmael. Some years ago, never mind how long precisely,');
+	});
+
+	test('partial selections across cues; words are found within the cues', async () => {
+		const r = await reader();
+		const range = r.resolve('t=0.3s-8.3s')!;
+		const text = r.textIndex.text;
+		const s = text.indexOf('me Ishmael');
+		const e = text.indexOf('how long') + 'how long'.length;
+		const sel = r.textIndex.toRange(s, e);
+		const loc = r.locatorFromRange(sel)!;
+		expect(loc.startsWith('t=0.3s-8.3s:~:text=')).toBe(true);
+		expect(r.resolve(loc)!.toString()).toBe('me Ishmael. Some years ago, never mind how long');
+		expect(range.toString()).toBe('Call me Ishmael. Some years ago, never mind how long precisely,');
+		// Words that aren't in those cues: the cues are highlighted.
+		expect(r.resolve('t=20s-22s:~:text=Ishmael')!.toString()).toBe('After a pause, a new paragraph.');
 	});
 
 	test('positions are collapsed; the cue at a time', async () => {

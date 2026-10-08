@@ -1,7 +1,9 @@
 import { DocumentView } from 'file-plus-plus/obsidian';
 import { PREFIX, type SelectionInfo } from 'file-plus-plus/core';
+import type { HighlightEntry } from 'file-plus-plus/obsidian';
 import { setIcon, type Menu } from 'obsidian';
-import { MediaPlayer, findMedia } from './media';
+import { findMedia } from './media';
+import { MediaPlayer } from './player';
 import type { TranscriptReader } from './reader';
 import type TranscriptPlusPlus from './main';
 import { parseTimeLocator } from './time';
@@ -81,12 +83,19 @@ export class TranscriptView extends DocumentView<Transcript, TranscriptReader> {
 			row.createEl('button', { text: 'Choose…' }).addEventListener('click', () => this.tpp.chooseMedia(this));
 			return;
 		}
-		const player = (this.player = new MediaPlayer(this.playerEl, this.app, media));
+		const player = (this.player = new MediaPlayer(this.playerEl, this.app, media, {
+			fallbackDuration: this.reader.transcript.duration,
+			rate: s.playbackRate,
+			onRate: (rate) => {
+				s.playbackRate = rate;
+				void this.tpp.saveSettings();
+			},
+		}));
 		const reader = this.reader;
 		const sync = () => {
 			if (this.reader !== reader || this.player !== player) return;
-			const changed = reader.setPlaying(player.el.paused && player.time === 0 ? null : reader.cueAt(player.time));
-			if (changed && !player.el.paused && this.tpp.settings.followPlayback && Date.now() > this.manualScrollUntil) {
+			const changed = reader.setPlaying(player.paused && player.time === 0 ? null : reader.cueAt(player.time));
+			if (changed && !player.paused && this.tpp.settings.followPlayback && Date.now() > this.manualScrollUntil) {
 				const r = changed.ownerDocument.createRange();
 				r.selectNodeContents(changed);
 				const box = reader.scroller.getBoundingClientRect();
@@ -129,13 +138,24 @@ export class TranscriptView extends DocumentView<Transcript, TranscriptReader> {
 	}
 
 	protected override extendSelectionMenu(menu: Menu, info: SelectionInfo): void {
+		this.addPlayItems(menu, info.range, 'tpp-play', 'Play selection');
+	}
+
+	/** A highlight's menu (right-click, or a hold on mobile) plays it too. */
+	protected override extendHighlightMenu(menu: Menu, entry: HighlightEntry, section: string): void {
+		const range = this.reader?.highlightRange(entry.id);
+		if (range) this.addPlayItems(menu, range, section, 'Play highlight');
+	}
+
+	/** "Play from here" and "Play <what>" (stops at its end) for the cues of a range. */
+	private addPlayItems(menu: Menu, range: Range, section: string, clipTitle: string): void {
 		if (!this.player) return;
-		const cues = this.reader?.cuesOf(info.range) ?? [];
+		const cues = this.reader?.cuesOf(range) ?? [];
 		if (!cues.length) return;
 		const start = cues[0].start;
 		const end = cues[cues.length - 1].end;
-		menu.addItem((i) => i.setTitle('Play from here').setIcon('play').setSection('tpp-play').onClick(() => this.player?.seek(start, true)));
-		menu.addItem((i) => i.setTitle('Play selection').setIcon('repeat-1').setSection('tpp-play').onClick(() => this.player?.playClip(start, end)));
+		menu.addItem((i) => i.setTitle('Play from here').setIcon('play').setSection(section).onClick(() => this.player?.seek(start, true)));
+		menu.addItem((i) => i.setTitle(clipTitle).setIcon('repeat-1').setSection(section).onClick(() => this.player?.playClip(start, end)));
 	}
 
 	protected override onTeardown(): void {

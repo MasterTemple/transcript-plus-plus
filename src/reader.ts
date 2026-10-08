@@ -1,5 +1,5 @@
 import { DocumentReader, PREFIX, textFragmentScheme, type LocatorScheme, type ParsedLocator, type ReaderOptions, type TocItem } from 'file-plus-plus/core';
-import { cueScheme, formatClock, formatTimeLocator, parseCueLocator, parseTimeLocator, timeScheme } from './time';
+import { cueScheme, formatClock, formatTimeLocator, parseCueLocator, parseTimeLocator, timeScheme, type TimeLocator } from './time';
 import { appendCueText, type Cue, type Transcript } from './transcript';
 
 export const TRANSCRIPT_SCHEMES: LocatorScheme[] = [timeScheme, cueScheme, textFragmentScheme];
@@ -141,13 +141,22 @@ export class TranscriptReader extends DocumentReader {
 			last = cues.findIndex((x) => x.id === c?.to);
 			if (first === -1 || last < first) return null;
 		} else return null;
+		const range = this.cueRange(first, last);
+		if (!range) return null;
+		const t = loc.scheme === 'time' ? parseTimeLocator(loc.locator!) : null;
+		if (t?.text) return this.resolveTextFragment(t.text, range) ?? range;
+		if (t && t.end === null) range.collapse(true);
+		return range;
+	}
+
+	/** The range over cues `first` through `last`. */
+	private cueRange(first: number, last: number): Range | null {
 		const a = this.cueEls[first];
 		const b = this.cueEls[last];
 		if (!a || !b) return null;
 		const range = this.doc.createRange();
 		range.setStart(a, 0);
-		if (loc.scheme === 'time' && parseTimeLocator(loc.locator!)?.end === null) range.collapse(true);
-		else range.setEnd(b, b.childNodes.length);
+		range.setEnd(b, b.childNodes.length);
 		return range;
 	}
 
@@ -188,7 +197,15 @@ export class TranscriptReader extends DocumentReader {
 		if (!a) return null;
 		if (range.collapsed) return formatTimeLocator({ start: a.start, end: null });
 		const b = this.cueOfPoint(range.endContainer, range.endOffset, 'before') ?? a;
-		return formatTimeLocator({ start: a.start, end: Math.max(a.end, b.end) });
+		const loc: TimeLocator = { start: a.start, end: Math.max(a.end, b.end) };
+		// Part of the cues: add the exact words, searched from the first cue.
+		const cues = this.cueRange(a.index, Math.max(a.index, b.index));
+		if (cues) {
+			const [s, e] = this.textIndex.rangeToOffsets(range);
+			const [cs, ce] = this.textIndex.rangeToOffsets(cues);
+			if (s > cs || e < ce) loc.text = this.textFragmentFromRange(range, cues) ?? undefined;
+		}
+		return formatTimeLocator(loc);
 	}
 
 	/** The cues a range touches. */

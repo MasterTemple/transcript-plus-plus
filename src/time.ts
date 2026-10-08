@@ -4,6 +4,10 @@ import { safeDecode, type LocatorScheme } from 'file-plus-plus/core';
  * Times in links are seconds: `t=109s-300.7s` (a passage: the cues from 109 s through 300.7 s) or
  * `t=109s` (a position). Never the subtitle style `00:01:49,312`, which is noisy in links.
  *
+ * A passage that isn't whole cues adds a text fragment for the exact words, the way a URL adds one to
+ * its fragment: `t=109s-120.5s:~:text=the%20whale`. The time is for playing and ordering; the words,
+ * searched within those cues, for the highlight.
+ *
  * Also understood when parsing: Media Fragments (`t=109,300.7`, `t=npt:1:49`), clock times
  * (`1:49`, `1:01:49.5`), and cue ids: `cue=12`, `cue=12-14`.
  */
@@ -11,6 +15,8 @@ export interface TimeLocator {
 	start: number;
 	/** null: a position, not a passage. */
 	end: number | null;
+	/** The exact words: a text-fragment directive (`:~:text=…`) searched within the cues. */
+	text?: string;
 }
 
 /** Seconds from `109`, `109s`, `109.5s`, `1:49`, `01:49.5`, `1:01:49`, `00:01:49,312`, `npt:…`. */
@@ -39,21 +45,25 @@ export function formatClock(t: number): string {
 }
 
 export function formatTimeLocator(loc: TimeLocator): string {
-	return `t=${formatSeconds(loc.start)}${loc.end === null ? '' : `-${formatSeconds(loc.end)}`}`;
+	return `t=${formatSeconds(loc.start)}${loc.end === null ? '' : `-${formatSeconds(loc.end)}`}${loc.text ?? ''}`;
 }
 
-/** `t=…` (as written in a link, maybe percent-encoded) → start and end, or null. */
+/** `t=…` (as written in a link, maybe percent-encoded) → start, end and words, or null. */
 export function parseTimeLocator(locator: string): TimeLocator | null {
-	const m = /^t=([^&]*)$/.exec(safeDecode(locator));
+	const m = /^t=([^&]*)$/.exec(locator);
 	if (!m) return null;
-	const value = m[1];
+	// The text directive stays encoded (it is a text fragment); the time may have been encoded (`%3A`).
+	const split = /:~:|%3A~%3A/i.exec(m[1]);
+	const text = split ? `:~:${m[1].slice(split.index + split[0].length)}` : undefined;
+	const value = safeDecode(split ? m[1].slice(0, split.index) : m[1]);
 	// Media Fragments use a comma; ours a dash (which clock times never contain).
 	const [a, b] = value.includes(',') ? value.split(',', 2) : value.split('-', 2);
 	const start = a === '' ? 0 : parseTime(a);
 	const end = b === undefined || b === '' ? null : parseTime(b);
 	if (start === null || (b !== undefined && b !== '' && end === null)) return null;
 	if (end !== null && end < start) return null;
-	return { start, end };
+	if (text !== undefined && !/^:~:text=./.test(text)) return null;
+	return text ? { start, end, text } : { start, end };
 }
 
 export const timeScheme: LocatorScheme = {
@@ -64,7 +74,10 @@ export const timeScheme: LocatorScheme = {
 		const loc = parseTimeLocator(m[0]);
 		return loc ? { locator: formatTimeLocator(loc), rest: s.slice(m[0].length) } : null;
 	},
-	isRange: (locator) => parseTimeLocator(locator)?.end != null,
+	isRange: (locator) => {
+		const t = parseTimeLocator(locator);
+		return !!t && (t.end !== null || !!t.text);
+	},
 };
 
 /** `cue=12` or `cue=12-14`: cues by their id in the file (SRT numbers, WebVTT identifiers). */

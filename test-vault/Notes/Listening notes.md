@@ -5,7 +5,7 @@
 
 The [spleen line](Loomings.srt#t=17.82s-22.663s&color=red) is the best one.
 
-A text fragment: [[Loomings.srt#:~:text=watery%20part&color=blue|watery part]].
+Part of a cue: [[Loomings.srt#t=27.183s-30.649s:~:text=damp%2C%20drizzly&color=green|damp, drizzly]]. A text fragment: [[Loomings.srt#:~:text=watery%20part&color=blue|watery part]].
 
 Jump without a highlight: [[Loomings.srt#t=30s|0:30]]. By cue id: [[Lecture.en.vtt#cue=cue-3&color=green|Bert asks]].
 

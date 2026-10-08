@@ -28,12 +28,17 @@ describe('times', () => {
 		expect(parseTimeLocator('t=1%3A49-2%3A00')).toEqual({ start: 109, end: 120 });
 		expect(parseTimeLocator('t=109s')).toEqual({ start: 109, end: null });
 		expect(parseTimeLocator('t=20-10')).toBeNull();
+		expect(parseTimeLocator('t=1s-2s:~:text=a%2Cb')).toEqual({ start: 1, end: 2, text: ':~:text=a%2Cb' });
+		expect(parseTimeLocator('t=1%3A49-2%3A00%3A~%3Atext=a')).toEqual({ start: 109, end: 120, text: ':~:text=a' });
+		expect(formatTimeLocator({ start: 1, end: 2, text: ':~:text=a' })).toBe('t=1s-2s:~:text=a');
+		expect(timeScheme.isRange!('t=1s:~:text=a')).toBe(true);
 		expect(timeScheme.isRange!('t=1s-2s')).toBe(true);
 		expect(timeScheme.isRange!('t=1s')).toBe(false);
 	});
 
 	test('subpaths normalize to seconds; params and other schemes', () => {
 		expect(parseLocator('#t=1:49,2:00&color=red', TRANSCRIPT_SCHEMES)).toEqual({ scheme: 'time', locator: 't=109s-120s', params: { color: 'red' } });
+		expect(parseLocator('t=109s-120s%3A~%3Atext=the%20whale&color=red', TRANSCRIPT_SCHEMES)).toEqual({ scheme: 'time', locator: 't=109s-120s:~:text=the%20whale', params: { color: 'red' } });
 		expect(parseLocator('cue=3-5&color=red', TRANSCRIPT_SCHEMES)).toEqual({ scheme: 'cue', locator: 'cue=3-5', params: { color: 'red' } });
 		expect(parseLocator(':~:text=call%20me', TRANSCRIPT_SCHEMES).scheme).toBe('text');
 		expect(parseCueLocator('cue=3-5')).toEqual({ from: '3', to: '5' });
