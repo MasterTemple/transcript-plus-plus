@@ -150,23 +150,22 @@ export class TranscriptReader extends DocumentReader {
 			last = cues.findIndex((x) => x.id === c?.to);
 			if (first === -1 || last < first) return null;
 		} else return null;
-		const range = this.cueRange(first, last);
-		if (!range) return null;
 		const t = loc.scheme === 'time' ? parseTimeLocator(loc.locator!) : null;
-		if (t?.text) return this.resolveTextFragment(t.text, range) ?? range;
-		if (t && t.end === null) range.collapse(true);
+		// The words, searched within the cues (the whole cues when they aren't there)
+		const range = this.resolveUnits(first, last, t?.text);
+		if (range && t && t.end === null && !t.text) range.collapse(true);
 		return range;
 	}
 
-	/** The range over cues `first` through `last`. */
-	private cueRange(first: number, last: number): Range | null {
-		const a = this.cueEls[first];
-		const b = this.cueEls[last];
-		if (!a || !b) return null;
-		const range = this.doc.createRange();
-		range.setStart(a, 0);
-		range.setEnd(b, b.childNodes.length);
-		return range;
+	/** Cues are the units of the library's locators: a selection of part of them adds the exact words. */
+	protected override unitElements(): readonly Element[] {
+		return this.cueEls;
+	}
+
+	/** A cue ends with its span (the space and labels between cues belong to none). */
+	protected override unitEnd(i: number): [Node, number] {
+		const el = this.cueEls[i];
+		return [el, el.childNodes.length];
 	}
 
 	/**
@@ -202,46 +201,19 @@ export class TranscriptReader extends DocumentReader {
 	}
 
 	locatorFromRange(range: Range): string | null {
-		const a = this.cueOfPoint(range.startContainer, range.startOffset, 'after');
-		if (!a) return null;
+		const units = this.unitsOfRange(range);
+		if (!units) return null;
+		const cues = this.transcript.cues;
+		const a = cues[units.first];
 		if (range.collapsed) return formatTimeLocator({ start: a.start, end: null });
-		const b = this.cueOfPoint(range.endContainer, range.endOffset, 'before') ?? a;
-		const loc: TimeLocator = { start: a.start, end: Math.max(a.end, b.end) };
-		// Part of the cues: add the exact words, searched from the first cue.
-		const cues = this.cueRange(a.index, Math.max(a.index, b.index));
-		if (cues) {
-			const [s, e] = this.textIndex.rangeToOffsets(range);
-			const [cs, ce] = this.textIndex.rangeToOffsets(cues);
-			if (s > cs || e < ce) loc.text = this.textFragmentFromRange(range, cues) ?? undefined;
-		}
-		return formatTimeLocator(loc);
+		// Part of the cues: the time (for playing and ordering) plus the exact words (for the highlight)
+		return formatTimeLocator({ start: a.start, end: Math.max(a.end, cues[units.last].end), text: units.text });
 	}
 
 	/** The cues a range touches. */
 	cuesOf(range: Range): Cue[] {
-		const a = this.cueOfPoint(range.startContainer, range.startOffset, 'after');
-		const b = range.collapsed ? a : this.cueOfPoint(range.endContainer, range.endOffset, 'before');
-		if (!a || !b || b.index < a.index) return a ? [a] : [];
-		return this.transcript.cues.slice(a.index, b.index + 1);
-	}
-
-	/** The cue containing a DOM point, else the nearest one after (or before) it. */
-	private cueOfPoint(node: Node, offset: number, prefer: 'after' | 'before'): Cue | null {
-		const el = (node.nodeType === 1 ? (node as Element) : node.parentElement)?.closest('[data-cue]');
-		if (el && this.content.contains(el)) return this.transcript.cues[Number((el as HTMLElement).dataset.cue)] ?? null;
-		const point = this.doc.createRange();
-		point.setStart(node, offset);
-		// First cue element after the point (binary search over cues in document order).
-		let lo = 0;
-		let hi = this.cueEls.length;
-		while (lo < hi) {
-			const mid = (lo + hi) >> 1;
-			if (point.comparePoint(this.cueEls[mid], 0) > 0) hi = mid;
-			else lo = mid + 1;
-		}
-		const i = prefer === 'after' ? lo : lo - 1;
-		const cues = this.transcript.cues;
-		return cues[Math.min(Math.max(i, 0), cues.length - 1)] ?? null;
+		const units = this.unitsOfRange(range);
+		return units ? this.transcript.cues.slice(units.first, units.last + 1) : [];
 	}
 
 	/** The element of a cue. */

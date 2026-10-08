@@ -1,4 +1,4 @@
-import { safeDecode, type LocatorScheme } from 'file-plus-plus/core';
+import { safeDecode, splitTextDirective, withTextDirective, type LocatorScheme } from 'file-plus-plus/core';
 
 /**
  * Times in links are seconds: `t=109s-300.7s` (a passage: the cues from 109 s through 300.7 s) or
@@ -45,7 +45,7 @@ export function formatClock(t: number): string {
 }
 
 export function formatTimeLocator(loc: TimeLocator): string {
-	return `t=${formatSeconds(loc.start)}${loc.end === null ? '' : `-${formatSeconds(loc.end)}`}${loc.text ?? ''}`;
+	return withTextDirective(`t=${formatSeconds(loc.start)}${loc.end === null ? '' : `-${formatSeconds(loc.end)}`}`, loc.text);
 }
 
 /** `t=…` (as written in a link, maybe percent-encoded) → start, end and words, or null. */
@@ -53,9 +53,9 @@ export function parseTimeLocator(locator: string): TimeLocator | null {
 	const m = /^t=([^&]*)$/.exec(locator);
 	if (!m) return null;
 	// The text directive stays encoded (it is a text fragment); the time may have been encoded (`%3A`).
-	const split = /:~:|%3A~%3A/i.exec(m[1]);
-	const text = split ? `:~:${m[1].slice(split.index + split[0].length)}` : undefined;
-	const value = safeDecode(split ? m[1].slice(0, split.index) : m[1]);
+	const split = splitTextDirective(m[1]);
+	const text = split.text ?? undefined;
+	const value = safeDecode(split.base);
 	// Media Fragments use a comma; ours a dash (which clock times never contain).
 	const [a, b] = value.includes(',') ? value.split(',', 2) : value.split('-', 2);
 	const start = a === '' ? 0 : parseTime(a);
