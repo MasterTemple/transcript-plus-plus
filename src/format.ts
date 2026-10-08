@@ -8,6 +8,7 @@ export const createTranscriptFormat = (settings: () => { sectionMinutes: number 
 	name: 'Transcript',
 	noun: 'transcript',
 	extensions: ['srt', 'vtt'],
+	plainText: true,
 	icon: 'captions',
 	frontmatterKey: 'transcript',
 	schemes: TRANSCRIPT_SCHEMES,
