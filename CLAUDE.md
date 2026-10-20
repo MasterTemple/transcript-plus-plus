@@ -18,8 +18,7 @@ src/
   time.ts        t=… (seconds; Media Fragments and clock times accepted) and cue=… locator schemes
   reader.ts      TranscriptReader extends DocumentReader: paragraphs of cue spans, sections/TOC by time
   media.ts       findAllMedia / findMedia (patterns, overrides), findTranscript (the reverse) — no Obsidian runtime imports (unit-tested)
-  player.ts      MediaPlayer: our own controls (container query: one row wide, two rows narrow), duration probing
-  view.ts        TranscriptView: player above the transcript, sync, follow, label clicks, play menu items
+  view.ts        TranscriptView: file-plus-plus's MediaPlayer above the transcript (the vault file's resource path), sync, follow (PlaybackFollower), label clicks, play menu items
   embed.ts       TranscriptEmbed: media + transcript, plays the passage
   settings.ts    TppSettings (extends the shared settings)
 scripts/         fixtures.ts (test media), helpers.js (page-script helpers)
@@ -41,7 +40,7 @@ Page scripts: one async IIFE with `scripts/helpers.js` prepended (`getView(path)
 - **Times in links are seconds** (`t=109s-300.7s`), by the user's choice; never `00:01:49,312`. Parsing accepts more (Media Fragments, clock times). A `t=` without an end is a position (not a highlight).
 - **Partial selections** link `t=<cues>:~:text=<words>`: the text fragment is generated and searched from the first cue (`textFragmentFromRange(range, within)` / `resolveTextFragment(f, within)`), so it is short and unambiguous. Whole cues link just `t=…`.
 - **Browser-recorded WebM has no duration** (`Infinity`): the player seeks to 1e101 once to make the browser find it, and shows the transcript's length meanwhile. `fixtures.ts` writes such a file (ffmpeg to a pipe).
-- **Obsidian's `button:not(.clickable-icon)` and `input[type=range]` rules** beat single-class selectors: player rules are scoped under `.tpp-player-ui`.
+- **Obsidian's `button:not(.clickable-icon)` and `input[type=range]` rules** beat single-class selectors: player rules (in file-plus-plus's styles.css, `.fpp-player-ui`, `tpp-` here) are scoped under it.
 - **Passages are whole cues:** a range resolves from the last cue starting at or before its start through the first cue ending at or after its end, so links round-trip. Text fragments are the precise alternative.
 - **Labels are `::before` content** (`data-label`), so times and speakers stay out of the text index, search, selections and copied Markdown. Clicking a label targets the paragraph itself; `labelTimeAt` checks the click is above the first cue.
 - **Subclass fields:** the view's extra UI is built in `buildExtraUi` (called after construction), never in a constructor hook — class fields would reset it.

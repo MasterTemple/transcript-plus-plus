@@ -56,15 +56,26 @@ export function parseSubtitles(input: string): Transcript {
 
 const ENTITIES: Record<string, string> = { amp: '&', lt: '<', gt: '>', nbsp: ' ', quot: '"', apos: "'", lrm: '‎', rlm: '‏' };
 
+/** `&amp;`, `&#39;`, `&#x2014;`… → their characters (unknown names and invalid numbers stay). */
+function decodeEntities(text: string): string {
+	return text.replace(/&(#x?[0-9a-f]+|[a-z]+);/gi, (m, e: string) => {
+		if (e[0] === '#') {
+			const n = e[1].toLowerCase() === 'x' ? parseInt(e.slice(2), 16) : parseInt(e.slice(1), 10);
+			return Number.isFinite(n) && n <= 0x10ffff ? String.fromCodePoint(n) : m;
+		}
+		return ENTITIES[e.toLowerCase()] ?? m;
+	});
+}
+
+/** A cue's text as the reader shows it, without markup (for searching it without rendering). */
+export function cuePlainText(text: string): string {
+	return decodeEntities(text.replace(/\n+/g, ' ').replace(/<[^>]*>/g, ''));
+}
+
 /**
  * Append a cue's text to an element: `<i>`, `<b>`, `<u>` become elements, other tags are dropped,
  * entities decoded, line breaks become spaces. Never uses innerHTML.
  */
-/** A cue's text as the reader shows it, without markup (for searching it without rendering). */
-export function cuePlainText(text: string): string {
-	return text.replace(/\n+/g, ' ').replace(/<[^>]*>/g, '');
-}
-
 export function appendCueText(parent: HTMLElement, text: string): void {
 	const doc = parent.ownerDocument;
 	const stack: HTMLElement[] = [parent];
@@ -84,13 +95,6 @@ export function appendCueText(parent: HTMLElement, text: string): void {
 			continue;
 		}
 		if (token.startsWith('<')) continue;
-		const decoded = token.replace(/&(#x?[0-9a-f]+|[a-z]+);/gi, (m, e: string) => {
-			if (e[0] === '#') {
-				const n = e[1].toLowerCase() === 'x' ? parseInt(e.slice(2), 16) : parseInt(e.slice(1), 10);
-				return Number.isFinite(n) ? String.fromCodePoint(n) : m;
-			}
-			return ENTITIES[e.toLowerCase()] ?? m;
-		});
-		stack[stack.length - 1].appendChild(doc.createTextNode(decoded));
+		stack[stack.length - 1].appendChild(doc.createTextNode(decodeEntities(token)));
 	}
 }

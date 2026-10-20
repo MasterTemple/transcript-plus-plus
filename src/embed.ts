@@ -1,7 +1,6 @@
-import { DocumentEmbed } from 'file-plus-plus/obsidian';
+import { DocumentEmbed, MediaPlayer } from 'file-plus-plus/obsidian';
 import type { ParsedLocator } from 'file-plus-plus/core';
 import { findMedia } from './media';
-import { MediaPlayer } from './player';
 import type { TranscriptReader } from './reader';
 import type TranscriptPlusPlus from './main';
 import { parseTimeLocator } from './time';
@@ -24,7 +23,7 @@ export class TranscriptEmbed extends DocumentEmbed<Transcript, TranscriptReader>
 		this.player?.destroy();
 		this.playerEl.empty();
 		if (!media) return;
-		const player = (this.player = new MediaPlayer(this.playerEl, plugin.app, media, { fallbackDuration: reader.transcript.duration, rate: s.playbackRate }));
+		const player = (this.player = new MediaPlayer(this.playerEl, plugin.app.vault.getResourcePath(media), { fallbackDuration: reader.transcript.duration, rate: s.playbackRate }));
 		const t = loc.locator ? parseTimeLocator(loc.locator) : null;
 		const cues = !t && range ? reader.cuesOf(range) : [];
 		const start = t?.start ?? cues[0]?.start ?? 0;

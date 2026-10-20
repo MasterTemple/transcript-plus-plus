@@ -1,9 +1,8 @@
-import { DocumentView } from 'file-plus-plus/obsidian';
+import { DocumentView, MediaPlayer, PlaybackFollower } from 'file-plus-plus/obsidian';
 import { PREFIX, type SelectionInfo } from 'file-plus-plus/core';
 import type { HighlightEntry } from 'file-plus-plus/obsidian';
 import { setIcon, type Menu, type TFile } from 'obsidian';
 import { MEDIA_EXTENSIONS } from './media';
-import { MediaPlayer } from './player';
 import type { TranscriptReader } from './reader';
 import type TranscriptPlusPlus from './main';
 import { parseTimeLocator } from './time';
@@ -12,10 +11,12 @@ import type { Transcript } from './transcript';
 /** The transcript view: the media player above the transcript, kept in sync with it. */
 export class TranscriptView extends DocumentView<Transcript, TranscriptReader> {
 	player: MediaPlayer | null = null;
+	/** The file the player plays. */
+	private playerFile: TFile | null = null;
 	private playerEl!: HTMLElement;
 	private followButton!: HTMLElement;
-	/** Until then, playback doesn't scroll the transcript (the user scrolled it). */
-	private manualScrollUntil = 0;
+	/** Keeps the playing cue in view, except just after the transcript is scrolled by hand. */
+	private follower: PlaybackFollower | null = null;
 	private offReader: (() => void)[] = [];
 
 	private get tpp(): TranscriptPlusPlus {
@@ -35,10 +36,14 @@ export class TranscriptView extends DocumentView<Transcript, TranscriptReader> {
 		this.tpp.settings.followPlayback = on;
 		void this.tpp.saveSettings();
 		for (const v of this.tpp.transcriptViews()) v.followButton.toggleClass('is-active', on);
-		if (on) this.manualScrollUntil = 0;
+		if (on) this.follower?.resume();
 	}
 
 	protected override onReaderReady(reader: TranscriptReader): void {
+		// Before the player: binding it syncs, which may scroll this reader to the playing cue.
+		// Wheel / touch scrolling pauses following for a few seconds.
+		const follower = (this.follower = new PlaybackFollower(reader));
+		this.offReader.push(() => follower.destroy());
 		this.loadPlayer();
 		const scroller = reader.scroller;
 		const onClick = (e: MouseEvent) => {
@@ -56,16 +61,8 @@ export class TranscriptView extends DocumentView<Transcript, TranscriptReader> {
 				this.player.seek(reader.transcript.cues[Number(cue.dataset.cue)].start, true);
 			}
 		};
-		// Wheel / touch scrolling pauses following for a few seconds.
-		const manual = () => (this.manualScrollUntil = Date.now() + 4000);
 		scroller.addEventListener('click', onClick, true);
-		scroller.addEventListener('wheel', manual, { passive: true });
-		scroller.addEventListener('touchmove', manual, { passive: true });
-		this.offReader.push(
-			() => scroller.removeEventListener('click', onClick, true),
-			() => scroller.removeEventListener('wheel', manual),
-			() => scroller.removeEventListener('touchmove', manual),
-		);
+		this.offReader.push(() => scroller.removeEventListener('click', onClick, true));
 	}
 
 	/**
@@ -100,11 +97,12 @@ export class TranscriptView extends DocumentView<Transcript, TranscriptReader> {
 		if (!this.file || !this.reader) return;
 		const s = this.tpp.settings;
 		const { file: media, all } = this.media();
-		if (this.reloading && this.player && this.player.file === media) return this.bindPlayer(this.player);
+		if (this.reloading && this.player && this.playerFile === media) return this.bindPlayer(this.player);
 		const old = this.player;
-		const resume = old && media && old.file !== media && (old.time > 0 || !old.paused) ? { time: old.time, play: !old.paused } : null;
+		const resume = old && media && this.playerFile !== media && (old.time > 0 || !old.paused) ? { time: old.time, play: !old.paused } : null;
 		old?.destroy();
 		this.player = null;
+		this.playerFile = null;
 		this.playerEl.empty();
 		if (!media) {
 			const row = this.playerEl.createDiv('tpp-player-missing');
@@ -113,15 +111,18 @@ export class TranscriptView extends DocumentView<Transcript, TranscriptReader> {
 			row.createEl('button', { text: 'Choose…' }).addEventListener('click', () => this.tpp.chooseMedia(this));
 			return;
 		}
-		const player = (this.player = new MediaPlayer(this.playerEl, this.app, media, {
+		const names = all.map((f) => f.name);
+		const label = (f: TFile) => (names.filter((n) => n === f.name).length > 1 ? f.path : f.name);
+		this.playerFile = media;
+		const player = (this.player = new MediaPlayer(this.playerEl, this.app.vault.getResourcePath(media), {
 			fallbackDuration: this.reader.transcript.duration,
 			rate: s.playbackRate,
 			onRate: (rate) => {
 				s.playbackRate = rate;
 				void this.tpp.saveSettings();
 			},
-			alternatives: all,
-			onChoose: (f) => this.playMedia(f),
+			sources: all.map((f) => ({ label: label(f), current: f === media, choose: () => this.playMedia(f) })),
+			sourceName: media.extension.toUpperCase(),
 		}));
 		this.bindPlayer(player);
 		if (resume) player.seek(resume.time, resume.play);
@@ -138,12 +139,10 @@ export class TranscriptView extends DocumentView<Transcript, TranscriptReader> {
 		const sync = () => {
 			if (this.reader !== reader || this.player !== player) return;
 			const changed = reader.setPlaying(player.paused && player.time === 0 ? null : reader.cueAt(player.time));
-			if (changed && !player.paused && this.tpp.settings.followPlayback && Date.now() > this.manualScrollUntil) {
+			if (changed && !player.paused && this.tpp.settings.followPlayback) {
 				const r = changed.ownerDocument.createRange();
 				r.selectNodeContents(changed);
-				const box = reader.scroller.getBoundingClientRect();
-				const at = changed.getBoundingClientRect();
-				if (at.top < box.top + box.height * 0.15 || at.bottom > box.top + box.height * 0.75) reader.scrollToRange(r, { position: 'center' });
+				this.follower?.show(r);
 			}
 		};
 		this.offReader.push(player.on('timeupdate', sync), player.on('seeked', sync));
@@ -200,9 +199,11 @@ export class TranscriptView extends DocumentView<Transcript, TranscriptReader> {
 	protected override onTeardown(): void {
 		this.offReader.forEach((off) => off());
 		this.offReader = [];
+		this.follower = null;
 		if (this.reloading) return; // the player is kept (see loadPlayer)
 		this.player?.destroy();
 		this.player = null;
+		this.playerFile = null;
 		this.playerEl?.empty();
 	}
 }

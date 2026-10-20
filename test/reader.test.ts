@@ -104,3 +104,10 @@ describe('extracted text', () => {
 		expect(r.resolve(across)!.toString()).toBe('Ishmael. Some');
 	});
 });
+
+describe('cue plain text', () => {
+	test('decodes entities as the reader shows them', async () => {
+		const { cuePlainText } = await import('../src/transcript');
+		expect(cuePlainText('<i>John&nbsp;3:16</i>\nand&#32;Romans 8:28&amp;29 &bogus; &#x110000;')).toBe('John\u00a03:16 and Romans 8:28&29 &bogus; &#x110000;');
+	});
+});
